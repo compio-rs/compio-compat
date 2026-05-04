@@ -1,0 +1,19 @@
+use std::{io, time::Duration};
+
+use compio::runtime::Runtime;
+use mod_use::mod_use;
+
+cfg_if::cfg_if! {
+    if #[cfg(windows)] {
+        mod_use![windows];
+    }
+}
+
+#[allow(async_fn_in_trait)]
+pub trait Adapter: Sized {
+    fn new(runtime: &Runtime) -> io::Result<Self>;
+
+    async fn wait(&self, timeout: Option<Duration>) -> io::Result<()>;
+
+    fn clear(&self) -> io::Result<()>;
+}
