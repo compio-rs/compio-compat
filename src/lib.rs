@@ -1,14 +1,20 @@
-use std::{io, time::Duration};
+use std::{
+    io,
+    pin::Pin,
+    task::{Context, Poll},
+    time::Duration,
+};
 
 use compio::runtime::Runtime;
 use compio_log::error;
 use mod_use::mod_use;
+use pin_project_lite::pin_project;
 
 mod_use!(sys);
 
 pub struct RuntimeCompat<A> {
-    runtime: Runtime,
     adapter: A,
+    runtime: Runtime,
 }
 
 impl<A: sys::Adapter> RuntimeCompat<A> {
@@ -21,33 +27,51 @@ impl<A: sys::Adapter> RuntimeCompat<A> {
         &self.adapter
     }
 
-    pub fn enter<T, F: FnOnce() -> T>(&self, f: F) -> T {
-        self.runtime.enter(f)
-    }
+    pub async fn execute<F: Future>(&self, f: F) -> F::Output {
+        let waker = self.runtime.waker();
+        let mut context = Context::from_waker(&waker);
+        let mut future = std::pin::pin!(f);
+        loop {
+            if let Poll::Ready(result) = self.runtime.enter(|| future.as_mut().poll(&mut context)) {
+                self.runtime.enter(|| self.runtime.run());
+                return result;
+            }
 
-    pub async fn enter_async<F: Future>(&self, f: F) -> F::Output {
-        let mut f = std::pin::pin!(f);
-        std::future::poll_fn(|cx| self.enter(|| f.as_mut().poll(cx))).await
-    }
+            let remaining_tasks = self.runtime.enter(|| self.runtime.run());
 
-    pub async fn run(&self) {
-        self.runtime.poll_with(Some(Duration::ZERO));
+            let timeout = if remaining_tasks {
+                Some(Duration::ZERO)
+            } else {
+                self.runtime.current_timeout()
+            };
 
-        let remaining_tasks = self.runtime.run();
+            self.adapter
+                .wait(timeout)
+                .await
+                .expect("failed to wait for driver");
 
-        let timeout = if remaining_tasks {
-            Some(Duration::ZERO)
-        } else {
-            self.runtime.current_timeout()
-        };
+            if let Err(_e) = self.adapter.clear() {
+                error!("failed to clear notifier: {_e:?}");
+            }
 
-        self.adapter
-            .wait(timeout)
-            .await
-            .expect("failed to wait for driver");
-
-        if let Err(_e) = self.adapter.clear() {
-            error!("failed to clear notifier: {_e:?}");
+            self.runtime.poll_with(Some(Duration::ZERO));
         }
+    }
+}
+
+pin_project! {
+    pub struct EnterAsync<F: ?Sized> {
+        runtime: Runtime,
+        #[pin]
+        future: F,
+    }
+}
+
+impl<F: Future + ?Sized> Future for EnterAsync<F> {
+    type Output = F::Output;
+
+    fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+        let this = self.project();
+        this.runtime.enter(|| this.future.poll(cx))
     }
 }

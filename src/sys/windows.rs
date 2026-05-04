@@ -6,6 +6,7 @@ use std::{
 };
 
 use compio::{driver::AsRawFd, runtime::Runtime};
+use compio_log::trace;
 use windows_sys::Win32::{
     Foundation::{WAIT_FAILED, WAIT_OBJECT_0},
     System::Threading::{CreateEventW, INFINITE, SetEvent, WaitForMultipleObjects},
@@ -36,6 +37,7 @@ impl Adapter for WindowsAdapter {
             let event_handle = event_handle as usize;
             move || {
                 while let Ok(timeout) = poll_receiver.recv() {
+                    trace!("polling with timeout: {:?}", timeout);
                     let timeout = match timeout {
                         Some(timeout) => timeout.as_millis() as u32,
                         None => INFINITE,
@@ -64,9 +66,8 @@ impl Adapter for WindowsAdapter {
 
     async fn wait(&self, timeout: Option<Duration>) -> io::Result<()> {
         self.poll_sender
-            .send_async(timeout)
-            .await
-            .expect("polling thread has been dropped");
+            .send(timeout)
+            .expect("cannot send poll request");
         self.wait_receiver
             .recv_async()
             .await
@@ -81,6 +82,7 @@ impl Adapter for WindowsAdapter {
 
 impl Drop for WindowsAdapter {
     fn drop(&mut self) {
+        self.poll_sender.send(None).ok();
         let res = unsafe { SetEvent(self.event.as_raw_handle()) };
         if res != 0
             && let Some(thread) = self.thread.take()
