@@ -41,6 +41,7 @@ impl Adapter for FuturesAdapter {
                         if !fds[1].revents().is_empty() {
                             break;
                         }
+                        fds[0].clear_revents();
                         if wait_sender.send(()).is_err() {
                             break;
                         }
