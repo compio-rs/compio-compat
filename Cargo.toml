@@ -5,6 +5,7 @@ resolver = "3"
 compio = { version = "0.19.0-rc.1", default-features = false }
 tokio = "1"
 futures-executor = "0.3"
+futures-util = "0.3"
 smol = "2"
 
 [package]
@@ -35,6 +36,8 @@ rustix = { version = "1", features = ["event", "io_uring"] }
 
 [target.'cfg(unix)'.dependencies]
 tokio = { workspace = true, optional = true, features = ["net", "time"] }
+smol = { workspace = true, optional = true }
+futures-util = { workspace = true, optional = true }
 
 [dev-dependencies]
 compio = { workspace = true, default-features = false, features = ["fs"] }
@@ -48,5 +51,5 @@ io-uring = ["compio/io-uring"]
 polling = ["compio/polling"]
 futures = []
 tokio = ["dep:tokio"]
-smol = []
+smol = ["dep:smol", "dep:futures-util"]
 enable_log = ["compio-log/enable_log"]

@@ -2,7 +2,7 @@
 use std::os::fd::{BorrowedFd, OwnedFd};
 use std::{
     io,
-    os::fd::{AsRawFd, RawFd},
+    os::fd::{AsFd, AsRawFd, RawFd},
 };
 
 use compio::runtime::Runtime;
@@ -10,6 +10,9 @@ use mod_use::mod_use;
 
 #[cfg(feature = "tokio")]
 mod_use![tokio];
+
+#[cfg(feature = "smol")]
+mod_use![smol];
 
 struct UnixAdapter {
     driver: RawFd,
@@ -80,5 +83,11 @@ impl AsRawFd for UnixAdapter {
         {
             self.driver
         }
+    }
+}
+
+impl AsFd for UnixAdapter {
+    fn as_fd(&self) -> BorrowedFd<'_> {
+        unsafe { BorrowedFd::borrow_raw(self.as_raw_fd()) }
     }
 }
