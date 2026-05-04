@@ -4,6 +4,8 @@ resolver = "3"
 [workspace.dependencies]
 compio = { version = "0.19.0-rc.1", default-features = false }
 tokio = "1"
+futures-executor = "0.3"
+smol = "2"
 
 [package]
 name = "compio-compat"
@@ -26,15 +28,11 @@ windows-sys = { version = "0.61.2", features = ["Win32_System_Threading"] }
 compio = { workspace = true, default-features = false, features = ["fs"] }
 
 tokio = { workspace = true, features = ["rt", "macros", "fs", "io-util"] }
-
-tracing-subscriber = "0.3.18"
+futures-executor = { workspace = true }
+smol = { workspace = true }
 
 [features]
 futures = []
 tokio = []
 smol = []
 enable_log = ["compio-log/enable_log"]
-
-[[test]]
-name = "tokio"
-required-features = ["tokio"]
