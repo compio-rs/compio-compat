@@ -10,7 +10,7 @@ pub struct SmolAdapter(Async<UnixAdapter>);
 
 impl Adapter for SmolAdapter {
     fn new(runtime: &Runtime) -> io::Result<Self> {
-        Ok(Self(Async::new(UnixAdapter::new(runtime)?)?))
+        Ok(Self(Async::new_nonblocking(UnixAdapter::new(runtime)?)?))
     }
 
     async fn wait(&self, timeout: Option<Duration>) -> io::Result<()> {
