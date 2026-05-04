@@ -19,7 +19,7 @@ impl Adapter for TokioAdapter {
         } else {
             fut.await?
         };
-        guard.retain_ready();
+        guard.clear_ready();
         Ok(())
     }
 
