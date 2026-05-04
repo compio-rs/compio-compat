@@ -1,7 +1,7 @@
 use std::{io, time::Duration};
 
 use compio::runtime::Runtime;
-use tokio::io::unix::AsyncFd;
+use tokio::io::{Interest, unix::AsyncFd};
 
 use crate::{Adapter, sys::unix::UnixAdapter};
 
@@ -9,7 +9,10 @@ pub struct TokioAdapter(AsyncFd<UnixAdapter>);
 
 impl Adapter for TokioAdapter {
     fn new(runtime: &Runtime) -> io::Result<Self> {
-        Ok(Self(AsyncFd::new(UnixAdapter::new(runtime)?)?))
+        Ok(Self(AsyncFd::with_interest(
+            UnixAdapter::new(runtime)?,
+            Interest::READABLE,
+        )?))
     }
 
     async fn wait(&self, timeout: Option<Duration>) -> io::Result<()> {
