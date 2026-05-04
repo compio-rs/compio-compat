@@ -1,0 +1,53 @@
+name: Test
+
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+    branches:
+      - master
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ github.event_name }}
+  cancel-in-progress: true
+
+env:
+  RUST_BACKTRACE: 1
+  CARGO_TERM_COLOR: always
+
+jobs:
+  test:
+    runs-on: ${{ matrix.setup.os }}
+    strategy:
+      matrix:
+        toolchain: ['stable']
+        setup:
+          - os: 'ubuntu-22.04'
+            features: 'tokio,futures,smol,io-uring'
+          - os: 'ubuntu-22.04'
+            features: 'tokio,futures,smol,polling'
+          - os: 'windows-latest'
+            features: 'tokio,futures,smol'
+          - os: 'macos-15'
+            features: 'tokio,futures,smol'
+    steps:
+      - uses: actions/checkout@v6
+      - name: Setup Rust Toolchain
+        run: rustup toolchain install ${{ matrix.toolchain }}
+      - name: Setup target
+        if: ${{ matrix.setup.target }}
+        run: rustup +${{ matrix.toolchain }} target install ${{ matrix.setup.target }}
+      - name: Test on ${{ matrix.setup.os }} ${{ matrix.toolchain }} ${{ matrix.setup.target }}
+        shell: bash
+        run: |
+          set -ex
+
+          ARGS=()
+
+          # Add features if features is not empty
+          if [[ -n "${{ matrix.setup.features }}" ]]; then
+              ARGS+=("--features" "${{ matrix.setup.features }}")
+          fi
+
+          cargo +${{ matrix.toolchain }} test "${ARGS[@]}"
