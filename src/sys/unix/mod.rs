@@ -11,6 +11,9 @@ use mod_use::mod_use;
 #[cfg(feature = "tokio")]
 mod_use![tokio];
 
+#[cfg(feature = "futures")]
+mod_use![futures];
+
 #[cfg(feature = "smol")]
 mod_use![smol];
 
