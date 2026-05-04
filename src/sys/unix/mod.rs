@@ -1,8 +1,8 @@
 #[cfg(target_os = "linux")]
-use std::os::fd::{BorrowedFd, OwnedFd};
+use std::os::fd::OwnedFd;
 use std::{
     io,
-    os::fd::{AsFd, AsRawFd, RawFd},
+    os::fd::{AsFd, AsRawFd, BorrowedFd, RawFd},
 };
 
 use compio::runtime::Runtime;
