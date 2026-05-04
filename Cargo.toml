@@ -11,6 +11,12 @@ smol = "2"
 name = "compio-compat"
 version = "0.1.0-rc.1"
 edition = "2024"
+description = "Compatibility layer for compio to work with various async runtimes."
+readme = "README.md"
+categories = ["asynchronous", "filesystem", "network-programming"]
+keywords = ["async", "fs", "iocp", "io-uring", "net"]
+license = "MIT"
+repository = "https://github.com/compio-rs/compio-compat"
 
 [dependencies]
 compio = { workspace = true, default-features = false, features = ["runtime"] }
