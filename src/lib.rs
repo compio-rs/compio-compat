@@ -45,6 +45,9 @@ impl<A: sys::Adapter> RuntimeCompat<A> {
                 self.runtime.current_timeout()
             };
 
+            // io-uring needs to be submitted before waiting.
+            self.runtime.poll_with(Some(Duration::ZERO));
+
             self.adapter
                 .wait(timeout)
                 .await
