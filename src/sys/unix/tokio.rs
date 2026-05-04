@@ -1,0 +1,29 @@
+use std::{io, time::Duration};
+
+use compio::runtime::Runtime;
+use tokio::io::unix::AsyncFd;
+
+use crate::{Adapter, sys::unix::UnixAdapter};
+
+pub struct TokioAdapter(AsyncFd<UnixAdapter>);
+
+impl Adapter for TokioAdapter {
+    fn new(runtime: &Runtime) -> io::Result<Self> {
+        Ok(Self(AsyncFd::new(UnixAdapter::new(runtime)?)?))
+    }
+
+    async fn wait(&self, timeout: Option<Duration>) -> io::Result<()> {
+        let fut = self.0.readable();
+        let mut guard = if let Some(timeout) = timeout {
+            tokio::time::timeout(timeout, fut).await??
+        } else {
+            fut.await?
+        };
+        guard.retain_ready();
+        Ok(())
+    }
+
+    fn clear(&self) -> io::Result<()> {
+        self.0.get_ref().clear()
+    }
+}

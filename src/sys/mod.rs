@@ -6,6 +6,10 @@ use mod_use::mod_use;
 cfg_if::cfg_if! {
     if #[cfg(windows)] {
         mod_use![windows];
+    } else if #[cfg(unix)] {
+        mod_use![unix];
+    } else {
+        compile_error!("Unsupported platform");
     }
 }
 
