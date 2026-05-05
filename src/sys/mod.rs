@@ -1,4 +1,4 @@
-use std::{io, time::Duration};
+use std::{io, ops::Deref, time::Duration};
 
 use compio::runtime::Runtime;
 use mod_use::mod_use;
@@ -14,8 +14,8 @@ cfg_if::cfg_if! {
 }
 
 #[allow(async_fn_in_trait)]
-pub trait Adapter: Sized {
-    fn new(runtime: &Runtime) -> io::Result<Self>;
+pub trait Adapter: Sized + Deref<Target = Runtime> {
+    fn new(runtime: Runtime) -> io::Result<Self>;
 
     async fn wait(&self, timeout: Option<Duration>) -> io::Result<()>;
 

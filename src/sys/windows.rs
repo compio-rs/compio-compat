@@ -1,95 +1,64 @@
 use std::{
     io,
     os::windows::io::{AsRawHandle, FromRawHandle, OwnedHandle, RawHandle},
-    thread::JoinHandle,
     time::Duration,
 };
 
 use compio::{driver::AsRawFd, runtime::Runtime};
-use compio_log::trace;
 use windows_sys::Win32::{
-    Foundation::{WAIT_FAILED, WAIT_OBJECT_0},
+    Foundation::{WAIT_FAILED, WAIT_TIMEOUT},
     System::Threading::{CreateEventW, INFINITE, SetEvent, WaitForMultipleObjects},
 };
 
 use crate::sys::Adapter;
 
 struct WindowsAdapter {
-    event: OwnedHandle,
-    poll_sender: flume::Sender<Option<Duration>>,
-    wait_receiver: flume::Receiver<()>,
-    thread: Option<JoinHandle<()>>,
+    runtime: Runtime,
 }
 
-impl Adapter for WindowsAdapter {
-    fn new(runtime: &Runtime) -> io::Result<Self> {
-        let iocp = runtime.as_raw_fd();
-        let event = unsafe { CreateEventW(std::ptr::null_mut(), 0, 0, std::ptr::null()) };
-        if event.is_null() {
-            return Err(io::Error::last_os_error());
-        }
-        let event = unsafe { OwnedHandle::from_raw_handle(event) };
-        let (poll_sender, poll_receiver) = flume::bounded::<Option<Duration>>(1);
-        let (wait_sender, wait_receiver) = flume::bounded(1);
-        let event_handle = event.as_raw_handle();
-        let thread = std::thread::spawn({
-            let iocp = iocp as usize;
-            let event_handle = event_handle as usize;
-            move || {
-                while let Ok(timeout) = poll_receiver.recv() {
-                    trace!("polling with timeout: {:?}", timeout);
-                    let timeout = match timeout {
-                        Some(timeout) => timeout.as_millis() as u32,
-                        None => INFINITE,
-                    };
-                    let handles = [event_handle as RawHandle, iocp as RawHandle];
-                    let res = unsafe { WaitForMultipleObjects(2, handles.as_ptr(), 0, timeout) };
-                    match res {
-                        WAIT_OBJECT_0 => break,
-                        WAIT_FAILED => panic!("{:?}", io::Error::last_os_error()),
-                        _ => {
-                            if wait_sender.send(()).is_err() {
-                                break;
-                            }
-                        }
-                    }
-                }
-            }
-        });
-        Ok(Self {
-            event,
-            poll_sender,
-            wait_receiver,
-            thread: Some(thread),
-        })
+impl WindowsAdapter {
+    fn new(runtime: Runtime) -> io::Result<Self> {
+        Ok(Self { runtime })
     }
 
     async fn wait(&self, timeout: Option<Duration>) -> io::Result<()> {
-        self.poll_sender
-            .send(timeout)
-            .expect("cannot send poll request");
-        self.wait_receiver
-            .recv_async()
-            .await
-            .expect("polling thread has been dropped");
-        Ok(())
-    }
-
-    fn clear(&self) -> io::Result<()> {
-        Ok(())
-    }
-}
-
-impl Drop for WindowsAdapter {
-    fn drop(&mut self) {
-        self.poll_sender.send(None).ok();
-        let res = unsafe { SetEvent(self.event.as_raw_handle()) };
-        if res != 0
-            && let Some(thread) = self.thread.take()
-            && let Err(e) = thread.join()
-        {
-            std::panic::resume_unwind(e)
+        let (sender, receiver) = oneshot::async_channel::<io::Result<()>>();
+        let event = unsafe { CreateEventW(std::ptr::null(), 0, 0, std::ptr::null()) };
+        if event.is_null() {
+            return Err(io::Error::last_os_error());
         }
+        let event_handle = unsafe { OwnedHandle::from_raw_handle(event as RawHandle) };
+
+        let timeout = match timeout {
+            Some(timeout) => timeout.as_millis() as u32,
+            None => INFINITE,
+        };
+
+        struct EventGuard(OwnedHandle);
+
+        impl Drop for EventGuard {
+            fn drop(&mut self) {
+                unsafe { SetEvent(self.0.as_raw_handle()) };
+            }
+        }
+
+        let _event_handle = EventGuard(event_handle);
+        let event = event as usize;
+        let driver = self.runtime.as_raw_fd() as usize;
+        windows_threading::submit(move || {
+            let handles = [event as RawHandle, driver as RawHandle];
+            let res = unsafe { WaitForMultipleObjects(2, handles.as_ptr(), 0, timeout) };
+            let res = match res {
+                WAIT_FAILED => Err(io::Error::last_os_error()),
+                WAIT_TIMEOUT => Err(io::ErrorKind::TimedOut.into()),
+                _ => Ok(()),
+            };
+            sender.send(res).ok();
+        });
+        receiver
+            .await
+            .map_err(|_| io::ErrorKind::Interrupted.into())
+            .flatten()
     }
 }
 
@@ -98,7 +67,7 @@ macro_rules! impl_adapter {
         pub struct $name(WindowsAdapter);
 
         impl Adapter for $name {
-            fn new(runtime: &Runtime) -> io::Result<Self> {
+            fn new(runtime: Runtime) -> io::Result<Self> {
                 WindowsAdapter::new(runtime).map(Self)
             }
 
@@ -107,7 +76,15 @@ macro_rules! impl_adapter {
             }
 
             fn clear(&self) -> io::Result<()> {
-                self.0.clear()
+                Ok(())
+            }
+        }
+
+        impl std::ops::Deref for $name {
+            type Target = Runtime;
+
+            fn deref(&self) -> &Self::Target {
+                &self.0.runtime
             }
         }
     };

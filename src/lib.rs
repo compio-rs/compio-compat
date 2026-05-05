@@ -1,5 +1,6 @@
 use std::{
     io,
+    ops::Deref,
     pin::Pin,
     task::{Context, Poll},
     time::Duration,
@@ -13,18 +14,13 @@ use pin_project_lite::pin_project;
 mod_use!(sys);
 
 pub struct RuntimeCompat<A> {
-    adapter: A,
-    runtime: Runtime,
+    runtime: A,
 }
 
 impl<A: sys::Adapter> RuntimeCompat<A> {
     pub fn new(runtime: Runtime) -> io::Result<Self> {
-        let adapter = A::new(&runtime)?;
-        Ok(Self { runtime, adapter })
-    }
-
-    pub fn adapter(&self) -> &A {
-        &self.adapter
+        let runtime = A::new(runtime)?;
+        Ok(Self { runtime })
     }
 
     pub async fn execute<F: Future>(&self, f: F) -> F::Output {
@@ -50,17 +46,30 @@ impl<A: sys::Adapter> RuntimeCompat<A> {
                 self.runtime.poll_with(Some(Duration::ZERO));
             }
 
-            self.adapter
-                .wait(timeout)
-                .await
-                .expect("failed to wait for driver");
+            match self.runtime.wait(timeout).await {
+                Ok(_) => {}
+                Err(e)
+                    if matches!(
+                        e.kind(),
+                        io::ErrorKind::TimedOut | io::ErrorKind::Interrupted
+                    ) => {}
+                Err(e) => panic!("failed to wait for driver: {e:?}"),
+            }
 
-            if let Err(_e) = self.adapter.clear() {
+            if let Err(_e) = self.runtime.clear() {
                 error!("failed to clear notifier: {_e:?}");
             }
 
             self.runtime.poll_with(Some(Duration::ZERO));
         }
+    }
+}
+
+impl<A: sys::Adapter> Deref for RuntimeCompat<A> {
+    type Target = Runtime;
+
+    fn deref(&self) -> &Self::Target {
+        &self.runtime
     }
 }
 
