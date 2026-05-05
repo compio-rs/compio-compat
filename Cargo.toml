@@ -46,10 +46,22 @@ futures-util = { workspace = true, optional = true }
 compio = { workspace = true, default-features = false, features = [
     "fs",
     "net",
+    "criterion",
 ] }
 
-tokio = { workspace = true, features = ["rt", "macros", "net", "io-util"] }
+tokio = { workspace = true, features = [
+    "rt",
+    "macros",
+    "fs",
+    "net",
+    "io-util",
+] }
 futures-executor = { workspace = true }
+
+criterion = { version = "0.8.2", features = ["async_tokio"] }
+futures-util = { workspace = true }
+rand = "0.10.1"
+tempfile = "3.27.0"
 
 [features]
 io-uring = ["compio/io-uring"]
@@ -61,3 +73,13 @@ enable_log = ["compio-log/enable_log"]
 [[test]]
 name = "net"
 required-features = ["tokio"]
+
+[[bench]]
+name = "net"
+required-features = ["tokio"]
+harness = false
+
+[[bench]]
+name = "fs"
+required-features = ["tokio"]
+harness = false
