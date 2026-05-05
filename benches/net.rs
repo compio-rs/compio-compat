@@ -127,6 +127,70 @@ fn echo_tokio_compio_tcp(b: &mut Bencher, content: Vec<u8>) {
         .iter_custom(|iter| echo_compio_tcp_impl(iter, content.clone()))
 }
 
+#[cfg(unix)]
+fn echo_tokio_unix(b: &mut Bencher, content: &[u8]) {
+    use tokio::net::{UnixListener, UnixStream};
+
+    let runtime = tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()
+        .unwrap();
+    b.to_async(&runtime).iter_custom(|iter| async move {
+        let dir = tempfile::Builder::new()
+            .prefix("tokio-uds")
+            .tempdir()
+            .unwrap();
+        let sock_path = dir.path().join("connect.sock");
+        let listener = UnixListener::bind(&sock_path).unwrap();
+
+        let mut client_buffer = vec![0u8; BUFFER_SIZE];
+        let mut server_buffer = vec![0u8; BUFFER_SIZE];
+
+        let start = Instant::now();
+        for _i in 0..iter {
+            let (tx, (rx, _)) =
+                tokio::try_join!(UnixStream::connect(&sock_path), listener.accept()).unwrap();
+            echo_tokio_impl(tx, rx, content, &mut client_buffer, &mut server_buffer).await;
+        }
+        start.elapsed()
+    })
+}
+
+async fn echo_compio_unix_impl(iter: u64, mut content: Vec<u8>) -> Duration {
+    use compio::net::{UnixListener, UnixStream};
+
+    let dir = tempfile::Builder::new()
+        .prefix("compio-uds")
+        .tempdir()
+        .unwrap();
+    let sock_path = dir.path().join("connect.sock");
+    let listener = UnixListener::bind(&sock_path).await.unwrap();
+
+    let mut client_buffer = vec![0u8; BUFFER_SIZE];
+    let mut server_buffer = vec![0u8; BUFFER_SIZE];
+
+    let start = Instant::now();
+    for _i in 0..iter {
+        let (tx, (rx, _)) =
+            futures_util::try_join!(UnixStream::connect(&sock_path), listener.accept()).unwrap();
+        (content, client_buffer, server_buffer) =
+            echo_compio_impl(tx, rx, content, client_buffer, server_buffer).await;
+    }
+    start.elapsed()
+}
+
+fn echo_compio_unix(b: &mut Bencher, content: Vec<u8>) {
+    let runtime = compio::runtime::Runtime::new().unwrap();
+    b.to_async(&runtime)
+        .iter_custom(|iter| echo_compio_unix_impl(iter, content.clone()))
+}
+
+fn echo_compio_in_tokio_unix(b: &mut Bencher, content: Vec<u8>) {
+    let runtime = CompioInTokio::default();
+    b.to_async(&runtime)
+        .iter_custom(|iter| echo_compio_unix_impl(iter, content.clone()))
+}
+
 fn echo(c: &mut Criterion) {
     let mut rng = rng();
 
@@ -140,6 +204,13 @@ fn echo(c: &mut Criterion) {
     group.bench_function("compio-tcp", |b| echo_compio_tcp(b, content.clone()));
     group.bench_function("compio-in-tokio-tcp", |b| {
         echo_tokio_compio_tcp(b, content.clone())
+    });
+
+    #[cfg(unix)]
+    group.bench_function("tokio-unix", |b| echo_tokio_unix(b, &content));
+    group.bench_function("compio-unix", |b| echo_compio_unix(b, content.clone()));
+    group.bench_function("compio-in-tokio-unix", |b| {
+        echo_compio_in_tokio_unix(b, content.clone())
     });
 
     group.finish();

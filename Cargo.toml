@@ -83,3 +83,7 @@ harness = false
 name = "fs"
 required-features = ["tokio"]
 harness = false
+
+[profile.bench]
+lto = true
+codegen-units = 1
