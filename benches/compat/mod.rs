@@ -12,6 +12,7 @@ impl Default for CompioInTokio {
             .enable_all()
             .build()
             .unwrap();
+        let _guard = truntime.enter();
         let cruntime =
             RuntimeCompat::<TokioAdapter>::new(compio::runtime::Runtime::new().unwrap()).unwrap();
         Self { truntime, cruntime }
