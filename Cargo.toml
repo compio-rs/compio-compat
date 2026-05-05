@@ -43,9 +43,12 @@ async-io = { workspace = true, optional = true }
 futures-util = { workspace = true, optional = true }
 
 [dev-dependencies]
-compio = { workspace = true, default-features = false, features = ["fs"] }
+compio = { workspace = true, default-features = false, features = [
+    "fs",
+    "net",
+] }
 
-tokio = { workspace = true, features = ["rt", "macros", "fs", "io-util"] }
+tokio = { workspace = true, features = ["rt", "macros", "net", "io-util"] }
 futures-executor = { workspace = true }
 
 [features]
@@ -54,3 +57,7 @@ polling = ["compio/polling"]
 tokio = ["dep:tokio"]
 futures = ["dep:async-io", "dep:futures-util"]
 enable_log = ["compio-log/enable_log"]
+
+[[test]]
+name = "net"
+required-features = ["tokio"]
