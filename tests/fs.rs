@@ -27,10 +27,10 @@ async fn tokio() {
     test_impl::<compio_compat::TokioAdapter>().await;
 }
 
-#[cfg(feature = "smol")]
+#[cfg(feature = "futures")]
 #[test]
-fn smol() {
+fn futures() {
     futures_executor::block_on(async {
-        test_impl::<compio_compat::SmolAdapter>().await;
+        test_impl::<compio_compat::FuturesAdapter>().await;
     })
 }

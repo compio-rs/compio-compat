@@ -24,13 +24,13 @@ jobs:
         toolchain: ['stable']
         setup:
           - os: 'ubuntu-22.04'
-            features: 'tokio,futures,smol,io-uring'
+            features: 'tokio,futures,io-uring'
           - os: 'ubuntu-22.04'
-            features: 'tokio,futures,smol,polling'
+            features: 'tokio,futures,polling'
           - os: 'windows-latest'
-            features: 'tokio,futures,smol'
+            features: 'tokio,futures'
           - os: 'macos-15'
-            features: 'tokio,futures,smol'
+            features: 'tokio,futures'
     steps:
       - uses: actions/checkout@v6
       - name: Setup Rust Toolchain

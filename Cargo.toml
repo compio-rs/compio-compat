@@ -52,5 +52,5 @@ futures-executor = { workspace = true }
 io-uring = ["compio/io-uring"]
 polling = ["compio/polling"]
 tokio = ["dep:tokio"]
-smol = ["dep:async-io", "dep:futures-util"]
+futures = ["dep:async-io", "dep:futures-util"]
 enable_log = ["compio-log/enable_log"]

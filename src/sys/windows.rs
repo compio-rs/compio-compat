@@ -93,5 +93,5 @@ macro_rules! impl_adapter {
 #[cfg(feature = "tokio")]
 impl_adapter!(TokioAdapter);
 
-#[cfg(feature = "smol")]
-impl_adapter!(SmolAdapter);
+#[cfg(feature = "futures")]
+impl_adapter!(FuturesAdapter);

@@ -12,8 +12,8 @@ use mod_use::mod_use;
 #[cfg(feature = "tokio")]
 mod_use![tokio];
 
-#[cfg(feature = "smol")]
-mod_use![smol];
+#[cfg(feature = "futures")]
+mod_use![futures];
 
 struct UnixAdapter {
     runtime: Runtime,

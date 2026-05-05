@@ -6,9 +6,9 @@ use futures_util::FutureExt;
 
 use crate::{Adapter, sys::unix::UnixAdapter};
 
-pub struct SmolAdapter(Async<UnixAdapter>);
+pub struct FuturesAdapter(Async<UnixAdapter>);
 
-impl Adapter for SmolAdapter {
+impl Adapter for FuturesAdapter {
     fn new(runtime: Runtime) -> io::Result<Self> {
         Ok(Self(Async::new_nonblocking(UnixAdapter::new(runtime)?)?))
     }
@@ -31,7 +31,7 @@ impl Adapter for SmolAdapter {
     }
 }
 
-impl Deref for SmolAdapter {
+impl Deref for FuturesAdapter {
     type Target = Runtime;
 
     fn deref(&self) -> &Self::Target {
