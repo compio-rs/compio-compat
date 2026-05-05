@@ -90,9 +90,6 @@ macro_rules! impl_adapter {
     };
 }
 
-#[cfg(feature = "futures")]
-impl_adapter!(FuturesAdapter);
-
 #[cfg(feature = "tokio")]
 impl_adapter!(TokioAdapter);
 

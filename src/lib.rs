@@ -41,10 +41,7 @@ impl<A: sys::Adapter> RuntimeCompat<A> {
                 self.runtime.current_timeout()
             };
 
-            // io-uring needs to be submitted before waiting.
-            if self.runtime.driver_type().is_iouring() {
-                self.runtime.poll_with(Some(Duration::ZERO));
-            }
+            self.runtime.submit();
 
             match self.runtime.wait(timeout).await {
                 Ok(_) => {}

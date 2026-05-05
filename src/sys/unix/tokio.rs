@@ -1,4 +1,4 @@
-use std::{io, time::Duration};
+use std::{io, ops::Deref, time::Duration};
 
 use compio::runtime::Runtime;
 use tokio::io::{Interest, unix::AsyncFd};
@@ -8,7 +8,7 @@ use crate::{Adapter, sys::unix::UnixAdapter};
 pub struct TokioAdapter(AsyncFd<UnixAdapter>);
 
 impl Adapter for TokioAdapter {
-    fn new(runtime: &Runtime) -> io::Result<Self> {
+    fn new(runtime: Runtime) -> io::Result<Self> {
         Ok(Self(AsyncFd::with_interest(
             UnixAdapter::new(runtime)?,
             Interest::READABLE,
@@ -28,5 +28,13 @@ impl Adapter for TokioAdapter {
 
     fn clear(&self) -> io::Result<()> {
         self.0.get_ref().clear()
+    }
+}
+
+impl Deref for TokioAdapter {
+    type Target = Runtime;
+
+    fn deref(&self) -> &Self::Target {
+        self.0.get_ref()
     }
 }

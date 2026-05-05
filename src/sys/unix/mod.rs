@@ -2,6 +2,7 @@
 use std::os::fd::OwnedFd;
 use std::{
     io,
+    ops::Deref,
     os::fd::{AsFd, AsRawFd, BorrowedFd, RawFd},
 };
 
@@ -11,22 +12,18 @@ use mod_use::mod_use;
 #[cfg(feature = "tokio")]
 mod_use![tokio];
 
-#[cfg(feature = "futures")]
-mod_use![futures];
-
 #[cfg(feature = "smol")]
 mod_use![smol];
 
 struct UnixAdapter {
-    driver: RawFd,
+    runtime: Runtime,
     #[cfg(target_os = "linux")]
     efd: Option<OwnedFd>,
 }
 
 #[cfg(target_os = "linux")]
 impl UnixAdapter {
-    fn new(runtime: &Runtime) -> io::Result<Self> {
-        let driver = runtime.as_raw_fd();
+    fn new(runtime: Runtime) -> io::Result<Self> {
         if runtime.driver_type().is_iouring() {
             use rustix::{
                 event::{EventfdFlags, eventfd},
@@ -37,18 +34,18 @@ impl UnixAdapter {
             let efd_raw = efd.as_raw_fd();
             unsafe {
                 io_uring_register(
-                    BorrowedFd::borrow_raw(driver),
+                    BorrowedFd::borrow_raw(runtime.as_raw_fd()),
                     IoringRegisterOp::RegisterEventfd,
                     (&raw const efd_raw).cast(),
                     1,
                 )?;
             }
             Ok(Self {
-                driver,
+                runtime,
                 efd: Some(efd),
             })
         } else {
-            Ok(Self { driver, efd: None })
+            Ok(Self { runtime, efd: None })
         }
     }
 
@@ -80,11 +77,11 @@ impl AsRawFd for UnixAdapter {
             self.efd
                 .as_ref()
                 .map(|f| f.as_raw_fd())
-                .unwrap_or(self.driver)
+                .unwrap_or_else(|| self.runtime.as_raw_fd())
         }
         #[cfg(not(target_os = "linux"))]
         {
-            self.driver
+            self.runtime.as_raw_fd()
         }
     }
 }
@@ -92,5 +89,13 @@ impl AsRawFd for UnixAdapter {
 impl AsFd for UnixAdapter {
     fn as_fd(&self) -> BorrowedFd<'_> {
         unsafe { BorrowedFd::borrow_raw(self.as_raw_fd()) }
+    }
+}
+
+impl Deref for UnixAdapter {
+    type Target = Runtime;
+
+    fn deref(&self) -> &Self::Target {
+        &self.runtime
     }
 }
