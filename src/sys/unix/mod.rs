@@ -60,9 +60,8 @@ impl UnixAdapter {
 
 #[cfg(not(target_os = "linux"))]
 impl UnixAdapter {
-    fn new(runtime: &Runtime) -> io::Result<Self> {
-        let driver = runtime.as_raw_fd();
-        Ok(Self { driver })
+    fn new(runtime: Runtime) -> io::Result<Self> {
+        Ok(Self { runtime })
     }
 
     fn clear(&self) -> io::Result<()> {
