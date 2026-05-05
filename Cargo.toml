@@ -76,12 +76,12 @@ required-features = ["tokio"]
 
 [[bench]]
 name = "net"
-required-features = ["tokio"]
+required-features = ["tokio", "futures"]
 harness = false
 
 [[bench]]
 name = "fs"
-required-features = ["tokio"]
+required-features = ["tokio", "futures"]
 harness = false
 
 [profile.bench]

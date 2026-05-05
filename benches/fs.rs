@@ -66,6 +66,12 @@ fn read_compio_in_tokio(b: &mut Bencher, (path, offsets): &(&Path, &[u64])) {
         .iter_custom(|iter| read_compio_impl(iter, path, offsets))
 }
 
+fn read_compio_in_futures(b: &mut Bencher, (path, offsets): &(&Path, &[u64])) {
+    let runtime = CompioInFutures::default();
+    b.to_async(&runtime)
+        .iter_custom(|iter| read_compio_impl(iter, path, offsets))
+}
+
 fn read_all_tokio(b: &mut Bencher, (path, len): &(&Path, u64)) {
     let runtime = tokio::runtime::Builder::new_current_thread()
         .enable_all()
@@ -116,6 +122,12 @@ fn read_all_compio_in_tokio(b: &mut Bencher, (path, len): &(&Path, u64)) {
         .iter_custom(|iter| read_all_compio_impl(iter, path, *len))
 }
 
+fn read_all_compio_in_futures(b: &mut Bencher, (path, len): &(&Path, u64)) {
+    let runtime = CompioInFutures::default();
+    b.to_async(&runtime)
+        .iter_custom(|iter| read_all_compio_impl(iter, path, *len))
+}
+
 fn read(c: &mut Criterion) {
     let mut rng = rng();
 
@@ -143,6 +155,11 @@ fn read(c: &mut Criterion) {
         &(&path, &offsets),
         read_compio_in_tokio,
     );
+    group.bench_with_input::<_, _, (&Path, &[u64])>(
+        "compio-in-futures",
+        &(&path, &offsets),
+        read_compio_in_futures,
+    );
 
     group.finish();
 
@@ -158,6 +175,12 @@ fn read(c: &mut Criterion) {
         &(&path, TOTAL_SIZE),
         read_all_compio_in_tokio,
     );
+    group.bench_with_input::<_, _, (&Path, u64)>(
+        "compio-in-futures",
+        &(&path, TOTAL_SIZE),
+        read_all_compio_in_futures,
+    );
+
     group.finish();
 }
 
@@ -214,6 +237,13 @@ fn write_compio(b: &mut Bencher, (path, offsets, content): &(&Path, &[u64], &[u8
 
 fn write_compio_in_tokio(b: &mut Bencher, (path, offsets, content): &(&Path, &[u64], &[u8])) {
     let runtime = CompioInTokio::default();
+    let content = content.to_vec();
+    b.to_async(&runtime)
+        .iter_custom(|iter| write_compio_impl(iter, path, offsets, content.clone()))
+}
+
+fn write_compio_in_futures(b: &mut Bencher, (path, offsets, content): &(&Path, &[u64], &[u8])) {
+    let runtime = CompioInFutures::default();
     let content = content.to_vec();
     b.to_async(&runtime)
         .iter_custom(|iter| write_compio_impl(iter, path, offsets, content.clone()))
@@ -282,6 +312,13 @@ fn write_all_compio_in_tokio(b: &mut Bencher, (path, content): &(&Path, &[u8])) 
         .iter_custom(|iter| write_all_compio_impl(iter, path, content.clone()))
 }
 
+fn write_all_compio_in_futures(b: &mut Bencher, (path, content): &(&Path, &[u8])) {
+    let runtime = CompioInFutures::default();
+    let content = content.to_vec();
+    b.to_async(&runtime)
+        .iter_custom(|iter| write_all_compio_impl(iter, path, content.clone()))
+}
+
 fn write(c: &mut Criterion) {
     const WRITE_FILE_SIZE: u64 = 16;
 
@@ -329,6 +366,12 @@ fn write(c: &mut Criterion) {
         &(&path, &offsets, &single_content),
         write_compio_in_tokio,
     );
+    group.bench_with_input::<_, _, (&Path, &[u64], &[u8])>(
+        "compio-in-futures",
+        &(&path, &offsets, &single_content),
+        write_compio_in_futures,
+    );
+
     group.finish();
 
     let mut group = c.benchmark_group("write-all");
@@ -340,6 +383,11 @@ fn write(c: &mut Criterion) {
         "compio-in-tokio",
         &(&path, &content),
         write_all_compio_in_tokio,
+    );
+    group.bench_with_input::<_, _, (&Path, &[u8])>(
+        "compio-in-futures",
+        &(&path, &content),
+        write_all_compio_in_futures,
     );
 
     group.finish()

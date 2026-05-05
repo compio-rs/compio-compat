@@ -121,8 +121,14 @@ fn echo_compio_tcp(b: &mut Bencher, content: Vec<u8>) {
         .iter_custom(|iter| echo_compio_tcp_impl(iter, content.clone()))
 }
 
-fn echo_tokio_compio_tcp(b: &mut Bencher, content: Vec<u8>) {
+fn echo_compio_in_tokio_tcp(b: &mut Bencher, content: Vec<u8>) {
     let runtime = CompioInTokio::default();
+    b.to_async(&runtime)
+        .iter_custom(|iter| echo_compio_tcp_impl(iter, content.clone()))
+}
+
+fn echo_compio_in_futures_tcp(b: &mut Bencher, content: Vec<u8>) {
+    let runtime = CompioInFutures::default();
     b.to_async(&runtime)
         .iter_custom(|iter| echo_compio_tcp_impl(iter, content.clone()))
 }
@@ -191,6 +197,12 @@ fn echo_compio_in_tokio_unix(b: &mut Bencher, content: Vec<u8>) {
         .iter_custom(|iter| echo_compio_unix_impl(iter, content.clone()))
 }
 
+fn echo_compio_in_futures_unix(b: &mut Bencher, content: Vec<u8>) {
+    let runtime = CompioInFutures::default();
+    b.to_async(&runtime)
+        .iter_custom(|iter| echo_compio_unix_impl(iter, content.clone()))
+}
+
 fn echo(c: &mut Criterion) {
     let mut rng = rng();
 
@@ -203,7 +215,10 @@ fn echo(c: &mut Criterion) {
     group.bench_function("tokio-tcp", |b| echo_tokio_tcp(b, &content));
     group.bench_function("compio-tcp", |b| echo_compio_tcp(b, content.clone()));
     group.bench_function("compio-in-tokio-tcp", |b| {
-        echo_tokio_compio_tcp(b, content.clone())
+        echo_compio_in_tokio_tcp(b, content.clone())
+    });
+    group.bench_function("compio-in-futures-tcp", |b| {
+        echo_compio_in_futures_tcp(b, content.clone())
     });
 
     #[cfg(unix)]
@@ -211,6 +226,9 @@ fn echo(c: &mut Criterion) {
     group.bench_function("compio-unix", |b| echo_compio_unix(b, content.clone()));
     group.bench_function("compio-in-tokio-unix", |b| {
         echo_compio_in_tokio_unix(b, content.clone())
+    });
+    group.bench_function("compio-in-futures-unix", |b| {
+        echo_compio_in_futures_unix(b, content.clone())
     });
 
     group.finish();
