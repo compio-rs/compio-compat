@@ -17,13 +17,6 @@ cfg_if::cfg_if! {
 pub trait Adapter: Sized + Deref<Target = Runtime> {
     fn new(runtime: Runtime) -> io::Result<Self>;
 
-    fn submit(&self) {
-        // io-uring needs to be submitted before waiting.
-        if self.driver_type().is_iouring() {
-            self.poll_with(Some(Duration::ZERO));
-        }
-    }
-
     async fn wait(&self, timeout: Option<Duration>) -> io::Result<()>;
 
     fn clear(&self) -> io::Result<()>;

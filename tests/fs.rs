@@ -8,7 +8,7 @@ async fn test_impl<A: Adapter>() {
     let runtime = RuntimeCompat::<A>::new(runtime).unwrap();
     let buffer = runtime
         .execute(async {
-            let mut file = File::open("Cargo.toml").await.unwrap();
+            let file = File::open("Cargo.toml").await.unwrap();
             let (_, buffer) = file.read_to_string_at(String::new(), 0).await.unwrap();
             buffer
         })

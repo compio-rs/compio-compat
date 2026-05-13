@@ -33,15 +33,15 @@ impl<A: sys::Adapter> RuntimeCompat<A> {
                 return result;
             }
 
-            let remaining_tasks = self.runtime.enter(|| self.runtime.run());
+            let mut remaining_tasks = self.runtime.enter(|| self.runtime.run());
+
+            remaining_tasks |= self.runtime.flush();
 
             let timeout = if remaining_tasks {
                 Some(Duration::ZERO)
             } else {
                 self.runtime.current_timeout()
             };
-
-            self.runtime.submit();
 
             match self.runtime.wait(timeout).await {
                 Ok(_) => {}
