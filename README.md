@@ -1,3 +1,7 @@
+# Archive notice
+
+This crate has been merged into the main stream of [`compio`](https://github.com/compio-rs/compio).
+
 # compio-compat
 
 Run compio in other async runtimes.
